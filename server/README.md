@@ -69,6 +69,16 @@ The server is a standard Express app—deploy it to your preferred Node hosting 
 
 Once deployed, update the Chrome extension settings (or default configuration) to point at your production URL, e.g. `https://api.sessionswitch.com/api`.
 
+### Deploying to Vercel
+
+The `server/api` directory contains serverless functions compatible with Vercel’s Node runtime. To deploy:
+
+1. Install the Vercel CLI and log in: `npm i -g vercel && vercel login`
+2. From the `server/` directory run `vercel` (for preview) or `vercel --prod`
+3. Configure the required environment variables in the Vercel dashboard (e.g., `OPENAI_API_KEY`, `CORS_ALLOW_ORIGINS`, model overrides)
+4. After deployment, the API will be available at `https://<your-project>.vercel.app/api/*`
+5. Update the SessionSwitch extension to use the deployed HTTPS endpoint (e.g., `https://api.sessionswitch.com/api`)
+
 ---
 
 ## Local Development
