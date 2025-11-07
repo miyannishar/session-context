@@ -22,6 +22,11 @@ module.exports = async (req, res) => {
     const body = await readJsonBody(req);
     const { tabList } = body || {};
 
+    logger.verbose('Parsed /api/label payload', {
+      origin,
+      tabList,
+    });
+
     if (!Array.isArray(tabList) || tabList.length === 0) {
       return sendJson(res, 400, { error: 'tabList must contain at least one tab' }, origin);
     }

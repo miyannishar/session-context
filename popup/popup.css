@@ -136,6 +136,10 @@ body {
   padding: 14px 20px;
   background: white;
   border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .sessions-header h2 {
@@ -248,4 +252,16 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  padding: 7px 14px;
+}
+
+.btn-ghost:hover {
+  background: rgba(239, 68, 68, 0.08);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.15);
 }

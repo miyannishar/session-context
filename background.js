@@ -290,11 +290,25 @@ async function onIdleStateChanged(state) {
   }
 }
 
-chrome.tabs.onActivated.addListener(onTabActivated);
+chrome.runtime.onActivated.addListener(onTabActivated);
 chrome.tabs.onUpdated.addListener(onTabUpdated);
 chrome.idle.onStateChanged.addListener(onIdleStateChanged);
 chrome.tabs.onRemoved.addListener((tabId) => {
   recentTabCaptures.delete(tabId);
+});
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message && message.type === 'sessionswitch:clearSessions') {
+    storage.setCurrentSessionId(null).finally(() => {
+      currentSessionId = null;
+      lastCaptureTs = null;
+      lastCaptureUrl = null;
+      recentTabCaptures.clear();
+      sendResponse({ ok: true });
+    });
+    return true;
+  }
+  return undefined;
 });
 
 chrome.runtime.onInstalled.addListener(async (details) => {

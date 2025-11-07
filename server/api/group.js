@@ -22,13 +22,12 @@ module.exports = async (req, res) => {
   try {
     const body = await readJsonBody(req);
 
-    if (config.logVerbose) {
-      logger.verbose('Vercel grouping request', {
-        newTab: body?.newTab?.url,
-        existingSessions: body?.existingSessions?.length || 0,
-        currentTabs: body?.currentTabs?.length || 0,
-      });
-    }
+    logger.verbose('Parsed /api/group payload', {
+      origin,
+      newTab: body?.newTab,
+      existingSessions: body?.existingSessions,
+      currentTabs: body?.currentTabs,
+    });
 
     const result = await handleGroupingRequest(body);
     return sendJson(res, 200, result, origin);

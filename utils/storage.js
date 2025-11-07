@@ -142,3 +142,8 @@ export async function cleanupExpiredSessions(maxAgeHours = 24) {
 
   return 0;
 }
+
+export async function clearSessions() {
+  await saveSessions([]);
+  await setCurrentSessionId(null);
+}

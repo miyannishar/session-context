@@ -1,7 +1,7 @@
 import * as storage from '../utils/storage.js';
 import * as sessionizer from '../utils/sessionizer.js';
 
-let sessionsList, emptyState, saveSnapshotBtn, snapshotNameInput, settingsBtn;
+let sessionsList, emptyState, saveSnapshotBtn, snapshotNameInput, settingsBtn, deleteAllSessionsBtn;
 
 async function initialize() {
   sessionsList = document.getElementById('sessionsList');
@@ -9,9 +9,13 @@ async function initialize() {
   saveSnapshotBtn = document.getElementById('saveSnapshotBtn');
   snapshotNameInput = document.getElementById('snapshotName');
   settingsBtn = document.getElementById('settingsBtn');
+  deleteAllSessionsBtn = document.getElementById('deleteAllSessionsBtn');
   
   saveSnapshotBtn.addEventListener('click', handleSaveSnapshot);
   settingsBtn.addEventListener('click', openSettings);
+  if (deleteAllSessionsBtn) {
+    deleteAllSessionsBtn.addEventListener('click', handleDeleteAllSessions);
+  }
   
   await loadSessions();
 }
@@ -138,6 +142,32 @@ async function handleDeleteSession(sessionId) {
   } catch (error) {
     console.error('Error deleting session:', error);
     alert('Error deleting session: ' + error.message);
+  }
+}
+
+async function handleDeleteAllSessions() {
+  if (!confirm('Delete all saved sessions?')) {
+    return;
+  }
+
+  try {
+    deleteAllSessionsBtn.disabled = true;
+    deleteAllSessionsBtn.textContent = 'Clearing…';
+
+    await storage.clearSessions();
+    try {
+      await chrome.runtime.sendMessage({ type: 'sessionswitch:clearSessions' });
+    } catch (error) {
+      console.warn('SessionSwitch: Unable to notify background about session clear', error);
+    }
+
+    await loadSessions();
+  } catch (error) {
+    console.error('Error clearing sessions:', error);
+    alert('Error clearing sessions: ' + error.message);
+  } finally {
+    deleteAllSessionsBtn.disabled = false;
+    deleteAllSessionsBtn.textContent = 'Delete All';
   }
 }
 

@@ -50,6 +50,8 @@ async function generateSessionLabel(tabList = []) {
     throw new Error('tabList must contain at least one tab');
   }
 
+  logger.verbose('generateSessionLabel input', tabList);
+
   const tabContexts = tabList
     .map((tab) => formatTabContent(tab))
     .filter(Boolean)
@@ -94,6 +96,8 @@ async function handleGroupingRequest(payload = {}) {
   if (!newTab || !newTab.url) {
     throw new Error('newTab with url is required');
   }
+
+  logger.verbose('handleGroupingRequest payload', payload);
 
   logger.verbose('Grouping request', {
     newTab: newTab.url,
