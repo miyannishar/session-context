@@ -67,7 +67,7 @@ All endpoints expect/return JSON.
 
 The server is a standard Express app—deploy it to your preferred Node hosting platform (Render, Railway, Fly.io, Heroku, AWS, etc.).
 
-Once deployed, update the Chrome extension settings (or default configuration) to point at your production URL, e.g. `https://api.sessionswitch.com/api`.
+Once deployed, update the Chrome extension settings (or default configuration) to point at your production URL, e.g. `https://session-context.vercel.app/api`.
 
 ### Deploying to Vercel
 

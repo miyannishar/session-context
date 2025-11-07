@@ -10,7 +10,7 @@ export function getDefaultSettings() {
     idleThresholdMinutes: 12,
     excludedDomains: [],
     pauseCapture: false,
-    serverUrl: 'https://api.sessionswitch.com/api'
+    serverUrl: 'https://session-context.vercel.app/api'
   };
 }
 

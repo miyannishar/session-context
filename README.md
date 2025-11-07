@@ -97,7 +97,7 @@ npm start
 # Server runs on http://localhost:3000
 ```
 
-The extension defaults to the production API (`https://api.sessionswitch.com/api`). When running locally, open the options page and set **Server API URL** to `http://localhost:3000/api`.
+The extension defaults to the production API (`https://session-context.vercel.app/api`). When running locally, open the options page and set **Server API URL** to `http://localhost:3000/api`.
 
 ---
 
