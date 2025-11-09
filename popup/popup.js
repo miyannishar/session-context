@@ -61,13 +61,17 @@ function createSessionElement(session) {
           <div class="session-meta-item">${uniqueTabs.length} tab${uniqueTabs.length !== 1 ? 's' : ''}</div>
         </div>
       </div>
-      <div class="session-actions">
+    </div>
+    <div class="session-actions">
+      <div class="session-actions-row">
         <button class="btn btn-success resume-btn" data-session-id="${session.id}">Resume</button>
         <button class="btn btn-danger delete-btn" data-session-id="${session.id}">Delete</button>
       </div>
+      <button class="btn btn-neutral group-btn" data-session-id="${session.id}">Group Tabs</button>
     </div>
   `;
   
+  div.querySelector('.group-btn').addEventListener('click', () => handleGroupSession(session.id));
   div.querySelector('.resume-btn').addEventListener('click', () => handleResumeSession(session.id));
   div.querySelector('.delete-btn').addEventListener('click', () => handleDeleteSession(session.id));
   
@@ -128,6 +132,78 @@ async function handleResumeSession(sessionId) {
   } catch (error) {
     console.error('Error resuming session:', error);
     alert('Error resuming session: ' + error.message);
+  }
+}
+
+async function handleGroupSession(sessionId) {
+  try {
+    const sessions = await storage.getAllSessions();
+    const session = sessions.find(s => s.id === sessionId);
+
+    if (!session || !session.tabList || session.tabList.length === 0) {
+      alert('Session has no tabs to group');
+      return;
+    }
+
+    const uniqueTabs = sessionizer.deduplicateTabs(session.tabList);
+    const urls = [...new Set(uniqueTabs.map(tab => tab.url))];
+
+    const currentWindow = await chrome.windows.getCurrent({ populate: false });
+    const existingTabs = await chrome.tabs.query({ windowId: currentWindow.id });
+    const tabsToGroup = [];
+    const usedTabIds = new Set();
+
+    const normalizeUrl = (url) => {
+      try {
+        const parsed = new URL(url);
+        parsed.hash = '';
+        if (parsed.pathname.endsWith('/')) {
+          parsed.pathname = parsed.pathname.slice(0, -1);
+        }
+        return parsed.toString();
+      } catch {
+        return url;
+      }
+    };
+
+    for (let i = 0; i < urls.length; i++) {
+      const targetUrl = urls[i];
+      const normalizedTarget = normalizeUrl(targetUrl);
+      let matchedTab = existingTabs.find(
+        (tab) => !usedTabIds.has(tab.id) && normalizeUrl(tab.url || '') === normalizedTarget
+      );
+
+      if (!matchedTab) {
+        matchedTab = await chrome.tabs.create({
+          windowId: currentWindow.id,
+          url: targetUrl,
+          active: tabsToGroup.length === 0
+        });
+      } else if (tabsToGroup.length === 0) {
+        await chrome.tabs.update(matchedTab.id, { active: true });
+      }
+
+      usedTabIds.add(matchedTab.id);
+      tabsToGroup.push(matchedTab.id);
+    }
+
+    if (tabsToGroup.length === 0) {
+      alert('No tabs available to group');
+      return;
+    }
+
+    const groupId = await chrome.tabs.group({
+      tabIds: tabsToGroup,
+      createProperties: { windowId: currentWindow.id }
+    });
+
+    const groupTitle = session.label || 'Session';
+    if (chrome.tabGroups && chrome.tabGroups.update) {
+      await chrome.tabGroups.update(groupId, { title: groupTitle, color: 'blue' });
+    }
+  } catch (error) {
+    console.error('Error creating tab group:', error);
+    alert('Error creating tab group: ' + error.message);
   }
 }
 
