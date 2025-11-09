@@ -57,12 +57,12 @@ async function generateSessionLabel(tabList = []) {
     .filter(Boolean)
     .join('\n\n---\n\n');
 
-  const prompt = `Analyze these browser tabs from a work session. The tabs may live on different platforms but represent a cohesive work context.
+  const prompt = `Analyze these browser tabs. They may live on different platforms but represent a cohesive browsing session.
 
 Requirements:
 - Maximum 4-5 words
-- Describe the work context, not the platforms
-- Identify the common theme across all tabs regardless of website/tool
+- Describe the shared theme or activity (work, research, entertainment, social browsing, etc.) rather than the platform itself
+- Identify the common thread across all tabs regardless of website/tool
 - Title case
 - No quotes or punctuation
 - Return only the name
@@ -132,13 +132,11 @@ async function handleGroupingRequest(payload = {}) {
     .filter(Boolean)
     .join('\n\n---\n\n');
 
-  const prompt = `Role: You are an expert session-grouping assistant for a browser-context tool.
+  const prompt = `Role: You are a session-grouping assistant for a browser-context tool.
 
-Task: Given a newly opened browser tab and a list of existing work sessions, decide whether the new tab belongs to any of the existing sessions or whether it should start a NEW session.
+Task: Given a newly opened browser tab and a list of existing sessions, decide whether the new tab belongs to any of the existing sessions or whether it should start a NEW session.
 
-Focus exclusively on what work or task the user is doing — not the platform, website, or tool being used.
-
-Only merge the tab into an existing session if it clearly shares the same task/activity, project/feature, or problem/goal. Be generous: if the underlying work is the same (even across different platforms/tools), merge it. Only output NEW if the work clearly differs.
+Focus on the actual topic, activity, or intent that connects the tabs — this can be work, research, entertainment, social browsing, shopping, anything. Ignore which platform or tool is used. Only merge the tab into an existing session if it clearly shares the same theme, task, or interest. Be generous: if the underlying topic/activity is clearly the same (even across different websites or apps), merge it. Only output NEW if the browsing intent or subject is clearly different.
 
 NEW TAB:
 ${newTabContext}
