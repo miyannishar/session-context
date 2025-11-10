@@ -13,8 +13,8 @@ Production-ready Express server that powers grouping and labeling decisions for 
 
 ## Setup
 
-```bash
-npm install
+   ```bash
+   npm install
 cp env.example .env   # populate with your secrets and overrides
 npm start              # or npm run dev for auto-reload with nodemon
 ```

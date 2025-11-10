@@ -18,6 +18,13 @@ export async function getGroupingDecision(newTab, existingSessions, allCurrentTa
     const serverUrl = await getServerUrl();
     const endpoint = `${serverUrl}/group`;
 
+    console.log('SessionSwitch: [ServerAPI] Preparing /group request', {
+      endpoint,
+      newTabTitle: newTab?.title || 'Untitled',
+      existingSessionCount: existingSessions?.length || 0,
+      sampleExistingLabels: (existingSessions || []).slice(0, 3).map(s => s.label || 'Unnamed')
+    });
+
     let currentTabs = allCurrentTabs;
     if (!currentTabs) {
       try {
@@ -67,6 +74,11 @@ export async function getGroupingDecision(newTab, existingSessions, allCurrentTa
       body: JSON.stringify(requestData)
     });
 
+    console.log('SessionSwitch: [ServerAPI] Sent /group request', {
+      requestSizeBytes: JSON.stringify(requestData).length,
+      endpoint
+    });
+
     if (!response.ok) {
       const error = await response.json().catch(() => ({
         message: `HTTP ${response.status}: ${response.statusText}`
@@ -79,21 +91,52 @@ export async function getGroupingDecision(newTab, existingSessions, allCurrentTa
       return null;
     }
 
-    const result = await response.json();
+    const responseData = await response.json();
     
-    if (!result.action || !['merge', 'create_new'].includes(result.action)) {
+    // Handle new ADK backend response format: { result: { action, sessionId, updatedLabel, suggestedLabel } }
+    const result = responseData.result || responseData;
+    console.log('SessionSwitch: [ServerAPI] Received /group response', {
+      action: result?.action,
+      sessionId: result?.sessionId,
+      updatedLabel: result?.updatedLabel,
+      suggestedLabel: result?.suggestedLabel,
+      label: result?.label,
+      reason: result?.reason
+    });
+    
+    // Normalize action field: ADK uses "new" but extension expects "create_new"
+    if (result.action) {
+      result.action = String(result.action).trim();
+      if (result.action === 'new') {
+        result.action = 'create_new';
+      }
+    }
+
+    if (!result.action || !['merge', 'create_new', 'no_action'].includes(result.action)) {
       console.error('SessionSwitch: Invalid response format from server', result);
       return null;
+    }
+
+    // For merge actions, include the updatedLabel
+    if (result.action === 'merge' && result.updatedLabel) {
+      result.label = result.updatedLabel;
+    }
+
+    if (result.action === 'no_action') {
+      if (!result.label && result.updatedLabel) {
+        result.label = result.updatedLabel;
+      }
+      console.log('SessionSwitch: [ServerAPI] No action required', {
+        sessionId: result.sessionId,
+        label: result.label,
+        reason: result.reason
+      });
     }
 
     return result;
 
   } catch (error) {
-    console.error('SessionSwitch: Error calling server for grouping', {
-      message: error.message,
-      stack: error.stack,
-      name: error.name
-    });
+    console.error('SessionSwitch: Error calling server for grouping', error.message, error);
     return null;
   }
 }
@@ -102,6 +145,12 @@ export async function generateSessionLabel(tabList) {
   try {
     const serverUrl = await getServerUrl();
     const endpoint = `${serverUrl}/label`;
+
+    console.log('SessionSwitch: [ServerAPI] Preparing /label request', {
+      endpoint,
+      tabCount: tabList?.length || 0,
+      sampleTitles: (tabList || []).slice(0, 3).map(tab => tab.title || 'Untitled')
+    });
 
     const requestData = {
       tabList: tabList.map(tab => ({
@@ -119,6 +168,11 @@ export async function generateSessionLabel(tabList) {
       body: JSON.stringify(requestData)
     });
 
+    console.log('SessionSwitch: [ServerAPI] Sent /label request', {
+      requestSizeBytes: JSON.stringify(requestData).length,
+      endpoint
+    });
+
     if (!response.ok) {
       const error = await response.json().catch(() => ({
         message: `HTTP ${response.status}: ${response.statusText}`
@@ -132,6 +186,7 @@ export async function generateSessionLabel(tabList) {
     }
 
     const result = await response.json();
+    console.log('SessionSwitch: [ServerAPI] Received /label response', result);
     
     if (!result.label || typeof result.label !== 'string') {
       console.error('SessionSwitch: Invalid response format from server', result);
@@ -141,11 +196,7 @@ export async function generateSessionLabel(tabList) {
     return result.label.trim();
 
   } catch (error) {
-    console.error('SessionSwitch: Error calling server for labeling', {
-      message: error.message,
-      stack: error.stack,
-      name: error.name
-    });
+    console.error('SessionSwitch: Error calling server for labeling', error.message, error);
     return null;
   }
 }
