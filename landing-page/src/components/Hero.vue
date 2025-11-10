@@ -15,9 +15,9 @@ import { ArrowRight } from "lucide-vue-next";
       <div class="text-center space-y-8">
         <Badge variant="outline" class="text-sm py-2 px-4 gap-2 inline-flex items-center">
           <span class="mr-1 text-primary font-semibold uppercase tracking-wider text-xs">
-            New
+            Coming Soon
           </span>
-          <span>Chrome extension + FastAPI backend</span>
+          <span>Chrome extension landing in the Chrome Web Store</span>
         </Badge>
 
         <div
@@ -44,7 +44,7 @@ import { ArrowRight } from "lucide-vue-next";
               target="_blank"
               rel="noopener noreferrer"
             >
-              Install SessionSwitch
+              Self-host today
               <ArrowRight class="size-5 ml-2 group-hover/arrow:translate-x-1 transition-transform" />
             </a>
           </Button>
