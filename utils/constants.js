@@ -10,7 +10,8 @@ export const STORAGE_KEYS = {
   SESSIONS: 'sessions',
   EVENTS: 'events',
   SETTINGS: 'settings',
-  CURRENT_SESSION_ID: 'currentSessionId'
+  CURRENT_SESSION_ID: 'currentSessionId',
+  RESUME_PREFERENCE: 'resumePreference'
 };
 
 export const SERVER_CONFIG = {
@@ -46,4 +47,9 @@ export const EXCLUDED_URL_PREFIXES = [
   'chrome://',
   'chrome-extension://'
 ];
+
+export const RESUME_MODES = {
+  CURRENT_WINDOW: 'current_window',
+  NEW_WINDOW: 'new_window'
+};
 

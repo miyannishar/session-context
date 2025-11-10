@@ -23,6 +23,19 @@
       <button id="saveSnapshotBtn" class="btn btn-primary">Save Snapshot</button>
     </div>
 
+    <div class="resume-mode">
+      <span class="resume-label">Open tabs in</span>
+      <div class="resume-toggle" role="group" aria-label="Open tabs in">
+        <button class="toggle-option" data-resume-mode="current_window" aria-pressed="false">
+          Current window
+        </button>
+        <button class="toggle-option" data-resume-mode="new_window" aria-pressed="false">
+          New window
+        </button>
+      </div>
+      <span id="resumeModeHint" class="resume-hint">Will launch tabs in a new window</span>
+    </div>
+
     <div class="sessions-header">
       <h2>Recent Sessions</h2>
       <button id="deleteAllSessionsBtn" class="btn btn-ghost" type="button">Delete All</button>

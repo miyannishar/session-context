@@ -1,7 +1,16 @@
 import * as storage from '../utils/storage.js';
 import * as sessionizer from '../utils/sessionizer.js';
+import { RESUME_MODES } from '../utils/constants.js';
 
-let sessionsList, emptyState, saveSnapshotBtn, snapshotNameInput, settingsBtn, deleteAllSessionsBtn;
+let sessionsList,
+  emptyState,
+  saveSnapshotBtn,
+  snapshotNameInput,
+  settingsBtn,
+  deleteAllSessionsBtn,
+  resumeModeButtons,
+  resumeHintLabel;
+let resumeMode = RESUME_MODES.NEW_WINDOW;
 
 async function initialize() {
   sessionsList = document.getElementById('sessionsList');
@@ -10,14 +19,59 @@ async function initialize() {
   snapshotNameInput = document.getElementById('snapshotName');
   settingsBtn = document.getElementById('settingsBtn');
   deleteAllSessionsBtn = document.getElementById('deleteAllSessionsBtn');
+  resumeModeButtons = document.querySelectorAll('[data-resume-mode]');
+  resumeHintLabel = document.getElementById('resumeModeHint');
   
   saveSnapshotBtn.addEventListener('click', handleSaveSnapshot);
   settingsBtn.addEventListener('click', openSettings);
   if (deleteAllSessionsBtn) {
     deleteAllSessionsBtn.addEventListener('click', handleDeleteAllSessions);
   }
+
+  if (resumeModeButtons.length > 0) {
+    resumeMode = await storage.getResumePreference();
+    updateResumeToggleUI();
+    resumeModeButtons.forEach(btn =>
+      btn.addEventListener('click', (event) => handleResumeModeChange(event.currentTarget.dataset.resumeMode))
+    );
+  }
   
   await loadSessions();
+}
+
+function updateResumeToggleUI() {
+  if (resumeModeButtons.length > 0) {
+    const toggleGroup = resumeModeButtons[0].parentElement;
+    if (toggleGroup) {
+      const thumbLeft = resumeMode === RESUME_MODES.NEW_WINDOW ? 'calc(50% + 4px)' : '4px';
+      toggleGroup.style.setProperty('--thumb-left', thumbLeft);
+    }
+  }
+
+  resumeModeButtons.forEach((btn) => {
+    const isActive = btn.dataset.resumeMode === resumeMode;
+    btn.classList.toggle('is-active', isActive);
+    btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+  });
+
+  if (resumeHintLabel) {
+    resumeHintLabel.textContent =
+      resumeMode === RESUME_MODES.CURRENT_WINDOW ? 'Will reopen tabs in this window' : 'Will launch tabs in a new window';
+  }
+}
+
+async function handleResumeModeChange(mode) {
+  if (!mode || mode === resumeMode) {
+    return;
+  }
+
+  try {
+    await storage.setResumePreference(mode);
+    resumeMode = mode;
+    updateResumeToggleUI();
+  } catch (error) {
+    console.error('Error saving resume preference:', error);
+  }
 }
 
 async function loadSessions() {
@@ -114,20 +168,13 @@ async function handleResumeSession(sessionId) {
     
     const uniqueTabs = sessionizer.deduplicateTabs(session.tabList);
     const urls = [...new Set(uniqueTabs.map(tab => tab.url))];
-    
-    const newWindow = await chrome.windows.create({
-      url: urls[0],
-      focused: true
-    });
-    
-    for (let i = 1; i < urls.length; i++) {
-      await chrome.tabs.create({
-        windowId: newWindow.id,
-        url: urls[i],
-        active: false
-      });
+
+    if (resumeMode === RESUME_MODES.CURRENT_WINDOW) {
+      await openTabsInCurrentWindow(urls);
+    } else {
+      await openTabsInNewWindow(urls);
     }
-    
+
     window.close();
   } catch (error) {
     console.error('Error resuming session:', error);
@@ -296,6 +343,65 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+async function openTabsInNewWindow(urls) {
+  const newWindow = await chrome.windows.create({
+    url: urls[0],
+    focused: true
+  });
+
+  for (let i = 1; i < urls.length; i++) {
+    await chrome.tabs.create({
+      windowId: newWindow.id,
+      url: urls[i],
+      active: false
+    });
+  }
+}
+
+async function openTabsInCurrentWindow(urls) {
+  const currentWindow = await chrome.windows.getCurrent({ populate: false });
+  const existingTabs = await chrome.tabs.query({ windowId: currentWindow.id });
+  const usedTabIds = new Set();
+
+  const normalizeUrl = (url) => {
+    try {
+      const parsed = new URL(url);
+      parsed.hash = '';
+      if (parsed.pathname.endsWith('/')) {
+        parsed.pathname = parsed.pathname.slice(0, -1);
+      }
+      return parsed.toString();
+    } catch {
+      return url;
+    }
+  };
+
+  let firstTabActivated = false;
+
+  for (const targetUrl of urls) {
+    const normalizedTarget = normalizeUrl(targetUrl);
+    let matchedTab = existingTabs.find(
+      (tab) => !usedTabIds.has(tab.id) && normalizeUrl(tab.url || '') === normalizedTarget
+    );
+
+    if (matchedTab) {
+      if (!firstTabActivated) {
+        await chrome.tabs.update(matchedTab.id, { active: true });
+        firstTabActivated = true;
+      }
+      usedTabIds.add(matchedTab.id);
+    } else {
+      const createdTab = await chrome.tabs.create({
+        windowId: currentWindow.id,
+        url: targetUrl,
+        active: !firstTabActivated
+      });
+      usedTabIds.add(createdTab.id);
+      firstTabActivated = true;
+    }
+  }
 }
 
 document.addEventListener('DOMContentLoaded', initialize);

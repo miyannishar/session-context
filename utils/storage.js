@@ -1,4 +1,4 @@
-import { STORAGE_KEYS, SESSION_CONFIG, SERVER_CONFIG } from './constants.js';
+import { STORAGE_KEYS, SESSION_CONFIG, SERVER_CONFIG, RESUME_MODES } from './constants.js';
 
 export function getDefaultSettings() {
   return {
@@ -138,4 +138,16 @@ export async function cleanupExpiredSessions(maxAgeHours = SESSION_CONFIG.SESSIO
 export async function clearSessions() {
   await saveSessions([]);
   await setCurrentSessionId(null);
+}
+
+export async function getResumePreference() {
+  const result = await chrome.storage.local.get(STORAGE_KEYS.RESUME_PREFERENCE);
+  return result[STORAGE_KEYS.RESUME_PREFERENCE] || RESUME_MODES.NEW_WINDOW;
+}
+
+export async function setResumePreference(mode) {
+  if (!Object.values(RESUME_MODES).includes(mode)) {
+    throw new Error(`Invalid resume mode: ${mode}`);
+  }
+  await chrome.storage.local.set({ [STORAGE_KEYS.RESUME_PREFERENCE]: mode });
 }

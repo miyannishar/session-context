@@ -88,6 +88,11 @@ body {
   gap: 10px;
 }
 
+#saveSnapshotBtn {
+  padding: 9px 14px;
+  font-size: 12px;
+}
+
 #snapshotName {
   flex: 1;
   padding: 12px 16px;
@@ -171,6 +176,77 @@ body {
 
 .btn-danger:hover {
   background: rgba(252, 102, 117, 0.32);
+}
+
+.resume-mode {
+  padding: 18px 20px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: rgba(14, 21, 36, 0.72);
+  border-bottom: 1px solid rgba(118, 143, 222, 0.12);
+}
+
+.resume-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: rgba(183, 196, 235, 0.66);
+}
+
+.resume-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(118, 143, 222, 0.22);
+  background: rgba(16, 23, 40, 0.78);
+  padding: 4px;
+  gap: 4px;
+  width: 220px;
+  max-width: 100%;
+}
+
+.resume-toggle::before {
+  content: "";
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: var(--thumb-left, 4px);
+  width: calc(50% - 8px);
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(96, 139, 255, 0.9), rgba(122, 242, 199, 0.6));
+  box-shadow: 0 10px 22px -14px rgba(96, 139, 255, 0.5);
+  transition: left 180ms ease, box-shadow 180ms ease;
+}
+
+.toggle-option {
+  position: relative;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: color 180ms ease;
+  z-index: 1;
+  flex: 1;
+  text-align: center;
+}
+
+.toggle-option:hover {
+  color: var(--text-primary);
+}
+
+.toggle-option.is-active {
+  color: #0d1424;
+}
+
+.resume-hint {
+  font-size: 11px;
+  color: rgba(183, 196, 235, 0.55);
 }
 
 .sessions-header {
