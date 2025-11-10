@@ -1,15 +1,13 @@
 import * as storage from './storage.js';
-
-const DEFAULT_SERVER_URL = 'http://localhost:3000/api';
+import { SERVER_CONFIG, SERVER_ACTIONS } from './constants.js';
 
 async function getServerUrl() {
   try {
-    const result = await chrome.storage.local.get('settings');
-    const settings = result.settings || {};
-    return settings.serverUrl || DEFAULT_SERVER_URL;
+    const settings = await storage.loadSettings();
+    return settings.serverUrl || SERVER_CONFIG.DEFAULT_URL;
   } catch (error) {
     console.error('SessionSwitch: Error getting server URL', error);
-    return DEFAULT_SERVER_URL;
+    return SERVER_CONFIG.DEFAULT_URL;
   }
 }
 
@@ -104,25 +102,24 @@ export async function getGroupingDecision(newTab, existingSessions, allCurrentTa
       reason: result?.reason
     });
     
-    // Normalize action field: ADK uses "new" but extension expects "create_new"
     if (result.action) {
       result.action = String(result.action).trim();
       if (result.action === 'new') {
-        result.action = 'create_new';
+        result.action = SERVER_ACTIONS.CREATE_NEW;
       }
     }
 
-    if (!result.action || !['merge', 'create_new', 'no_action'].includes(result.action)) {
+    const validActions = Object.values(SERVER_ACTIONS);
+    if (!result.action || !validActions.includes(result.action)) {
       console.error('SessionSwitch: Invalid response format from server', result);
       return null;
     }
 
-    // For merge actions, include the updatedLabel
-    if (result.action === 'merge' && result.updatedLabel) {
+    if (result.action === SERVER_ACTIONS.MERGE && result.updatedLabel) {
       result.label = result.updatedLabel;
     }
 
-    if (result.action === 'no_action') {
+    if (result.action === SERVER_ACTIONS.NO_ACTION) {
       if (!result.label && result.updatedLabel) {
         result.label = result.updatedLabel;
       }

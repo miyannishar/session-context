@@ -2,6 +2,7 @@ import * as storage from './utils/storage.js';
 import * as sessionizer from './utils/sessionizer.js';
 import * as contentExtractor from './utils/contentExtractor.js';
 import * as serverAPI from './utils/serverAPI.js';
+import { TIME_CONSTANTS, SESSION_CONFIG, SERVER_ACTIONS, EXCLUDED_URL_PREFIXES } from './utils/constants.js';
 
 let currentSessionId = null;
 let lastCaptureTs = null;
@@ -10,7 +11,7 @@ const recentTabCaptures = new Map();
 
 async function initialize() {
   currentSessionId = await storage.getCurrentSessionId();
-  chrome.idle.setDetectionInterval(15);
+  chrome.idle.setDetectionInterval(TIME_CONSTANTS.IDLE_DETECTION_INTERVAL_SECONDS);
   
   await cleanupSessions();
   
@@ -21,8 +22,8 @@ async function initialize() {
 
 async function cleanupSessions() {
   try {
-    const deletedSingle = await storage.cleanupSingleTabSessions(5/60);
-    const deletedExpired = await storage.cleanupExpiredSessions(24);
+    const deletedSingle = await storage.cleanupSingleTabSessions();
+    const deletedExpired = await storage.cleanupExpiredSessions();
     if (deletedSingle > 0 || deletedExpired > 0) {
       console.log('SessionSwitch: Session cleanup summary', {
         removedSingleTabSessions: deletedSingle,
@@ -30,16 +31,14 @@ async function cleanupSessions() {
       });
     }
   } catch (error) {
-    console.error('SessionSwitch: Error cleaning up single-tab sessions', error);
+    console.error('SessionSwitch: Error cleaning up sessions', error);
   }
 }
 
 async function startNewSession(suggestedLabel = null) {
-  const newSession = storage.createSession();
+  const newSession = storage.createSession(suggestedLabel);
   
-  // If a suggested label is provided, set it immediately
   if (suggestedLabel) {
-    newSession.label = suggestedLabel;
     console.log('SessionSwitch: [Background] startNewSession with label', {
       sessionId: newSession.id,
       label: suggestedLabel
@@ -109,14 +108,13 @@ async function endCurrentSession() {
   });
   
   const session = (await storage.getAllSessions()).find(s => s.id === currentSessionId);
-  if (session && session.tabList && session.tabList.length === 1) {
+  if (session?.tabList?.length === 1) {
     const sessionAge = Date.now() - (session.endTs || session.startTs);
-    const tenMinutesMs = 10 * 60 * 1000;
-    if (sessionAge > tenMinutesMs) {
+    if (sessionAge > TIME_CONSTANTS.TEN_MINUTES_MS) {
       await storage.deleteSession(currentSessionId);
-      console.log('SessionSwitch: [Background] Deleted single-tab session immediately (older than 10 minutes)', {
+      console.log('SessionSwitch: [Background] Deleted single-tab session immediately', {
         sessionId: currentSessionId,
-        age: Math.round(sessionAge / 1000 / 60) + ' minutes'
+        ageMinutes: Math.round(sessionAge / 60000)
       });
       currentSessionId = null;
       await storage.setCurrentSessionId(null);
@@ -130,13 +128,41 @@ async function endCurrentSession() {
   await cleanupSessions();
 }
 
+function handleServerDecision(decision, captureTabObj, endedSessions) {
+  if (!decision) return null;
+
+  const { action, sessionId, suggestedLabel, label, updatedLabel, reason } = decision;
+
+  if (action === SERVER_ACTIONS.MERGE && sessionId) {
+    const matchingSession = endedSessions.find(s => s.id === sessionId);
+    if (matchingSession) {
+      matchingSession._serverDecision = decision;
+      console.log('SessionSwitch: [Background] Server matched session', {
+        sessionId: matchingSession.id,
+        sessionLabel: matchingSession.label,
+        updatedLabel: label || updatedLabel
+      });
+      return matchingSession;
+    }
+  } else if (action === SERVER_ACTIONS.NO_ACTION) {
+    console.log('SessionSwitch: [Background] Server suggests no action', {
+      reason, sessionId, label
+    });
+    captureTabObj._serverNoActionDecision = decision;
+  } else if (action === SERVER_ACTIONS.CREATE_NEW) {
+    console.log('SessionSwitch: [Background] Server recommends new session', { suggestedLabel });
+    captureTabObj._serverCreateNewDecision = decision;
+  }
+
+  return null;
+}
+
 async function findMatchingSession(captureTabObj, settings) {
   const allSessions = await storage.getAllSessions();
   const endedSessions = allSessions.filter(s => s.endTs);
   
   if (endedSessions.length === 0) return null;
   
-  let matchingSession = null;
   console.log('SessionSwitch: [Background] findMatchingSession', {
     candidateSessions: endedSessions.length,
     captureTitle: captureTabObj?.title || 'Untitled',
@@ -147,46 +173,21 @@ async function findMatchingSession(captureTabObj, settings) {
     try {
       const allTabs = await chrome.tabs.query({});
       const decision = await serverAPI.getGroupingDecision(captureTabObj, endedSessions, allTabs);
-      console.log('SessionSwitch: [Background] findMatchingSession server decision', decision);
-
-      if (decision && decision.action === 'merge' && decision.sessionId) {
-        matchingSession = endedSessions.find(s => s.id === decision.sessionId);
-        if (matchingSession) {
-          matchingSession._serverDecision = decision;
-          console.log('SessionSwitch: [Background] findMatchingSession matched', {
-            sessionId: matchingSession.id,
-            sessionLabel: matchingSession.label,
-            updatedLabel: decision.label || decision.updatedLabel
-          });
-        }
-      } else if (decision && decision.action === 'no_action') {
-        console.log('SessionSwitch: [Background] findMatchingSession no action suggested', {
-          reason: decision.reason,
-          sessionId: decision.sessionId,
-          label: decision.label
-        });
-        captureTabObj._serverNoActionDecision = decision;
-        return null;
-      } else if (decision && decision.action === 'create_new') {
-        console.log('SessionSwitch: [Background] findMatchingSession server recommends new session', {
-          suggestedLabel: decision.suggestedLabel
-        });
-        // Store the server's suggestion on the captureTab object
-        captureTabObj._serverCreateNewDecision = decision;
-        return null; // Return null to indicate no matching session
-      }
+      console.log('SessionSwitch: [Background] Server decision', decision);
+      return handleServerDecision(decision, captureTabObj, endedSessions);
     } catch (error) {
       console.error('SessionSwitch: Server matching failed', error);
     }
   }
   
-  return matchingSession;
+  return null;
 }
 
 async function mergeIntoSession(matchingSession, captureTabObj) {
   const sessions = await storage.getAllSessions();
   const freshSession = sessions.find(s => s.id === matchingSession.id);
   if (!freshSession) return false;
+  
   console.log('SessionSwitch: [Background] mergeIntoSession', {
     sessionId: matchingSession.id,
     previousTabCount: freshSession.tabList.length,
@@ -201,26 +202,18 @@ async function mergeIntoSession(matchingSession, captureTabObj) {
     startTs: Math.min(freshSession.startTs, captureTabObj.ts)
   });
   
-  // Apply the updated label from the server's matcher agent
-  // This label reflects both the old session content and the new tab being merged
-  if (matchingSession._serverDecision && matchingSession._serverDecision.label) {
-    console.log('SessionSwitch: Applying updated label from server:', matchingSession._serverDecision.label);
-    await storage.updateSession(matchingSession.id, { 
-      label: matchingSession._serverDecision.label 
-    });
-  } else if (matchingSession._serverDecision && matchingSession._serverDecision.updatedLabel) {
-    console.log('SessionSwitch: Applying updatedLabel from server:', matchingSession._serverDecision.updatedLabel);
-    await storage.updateSession(matchingSession.id, { 
-      label: matchingSession._serverDecision.updatedLabel 
-    });
+  const serverLabel = matchingSession._serverDecision?.label || matchingSession._serverDecision?.updatedLabel;
+  if (serverLabel) {
+    console.log('SessionSwitch: Applying updated label from server:', serverLabel);
+    await storage.updateSession(matchingSession.id, { label: serverLabel });
   } else {
-    // Fallback: generate a new label if server didn't provide one
     await labelSession(matchingSession.id, true);
   }
   
   delete matchingSession._serverDecision;
   currentSessionId = matchingSession.id;
   await storage.setCurrentSessionId(currentSessionId);
+  
   console.log('SessionSwitch: [Background] mergeIntoSession completed', {
     sessionId: matchingSession.id,
     totalTabs: updatedTabList.length
@@ -229,34 +222,48 @@ async function mergeIntoSession(matchingSession, captureTabObj) {
   return true;
 }
 
+function shouldSkipTab(tab, settings) {
+  if (!tab?.url) return true;
+  if (settings.pauseCapture) return true;
+  if (EXCLUDED_URL_PREFIXES.some(prefix => tab.url.startsWith(prefix))) return true;
+  if (sessionizer.isDomainExcluded(tab.url, settings.excludedDomains)) return true;
+  
+  const recentCapture = recentTabCaptures.get(tab.id);
+  if (recentCapture?.url === tab.url && 
+      (Date.now() - recentCapture.ts) < TIME_CONSTANTS.DUPLICATE_THRESHOLD_MS) {
+    console.log('SessionSwitch: [Background] Skipped duplicate capture', { tabId: tab.id, url: tab.url });
+    return true;
+  }
+  
+  return false;
+}
+
+async function handleNoActionDecision(captureTabObj, tab, capture) {
+  const noActionDecision = captureTabObj._serverNoActionDecision;
+  if (!noActionDecision) return false;
+  
+  console.log('SessionSwitch: [Background] No action required', {
+    reason: noActionDecision.reason,
+    sessionId: noActionDecision.sessionId,
+    label: noActionDecision.label
+  });
+  
+  if (noActionDecision.sessionId) {
+    currentSessionId = noActionDecision.sessionId;
+    await storage.setCurrentSessionId(currentSessionId);
+  }
+  
+  lastCaptureTs = capture.ts;
+  lastCaptureUrl = capture.url;
+  recentTabCaptures.set(tab.id, { url: tab.url, ts: Date.now() });
+  return true;
+}
+
 async function captureTab(tab) {
   try {
     const settings = await storage.loadSettings();
     
-    if (settings.pauseCapture) {
-      return;
-    }
-    
-    if (!tab || !tab.url) return;
-    
-    if (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://')) {
-      return;
-    }
-    
-    if (sessionizer.isDomainExcluded(tab.url, settings.excludedDomains)) {
-      return;
-    }
-
-    const now = Date.now();
-    const recentCapture = recentTabCaptures.get(tab.id);
-    const duplicateThresholdMs = 2 * 60 * 1000;
-    if (recentCapture && recentCapture.url === tab.url && (now - recentCapture.ts) < duplicateThresholdMs) {
-      console.log('SessionSwitch: [Background] captureTab skipped duplicate', {
-        tabId: tab.id,
-        url: tab.url
-      });
-      return;
-    }
+    if (shouldSkipTab(tab, settings)) return;
     
     let pageContent = null;
     try {
@@ -297,20 +304,7 @@ async function captureTab(tab) {
       }
     }
     
-    if (captureTabObj._serverNoActionDecision) {
-      const noActionDecision = captureTabObj._serverNoActionDecision;
-      console.log('SessionSwitch: [Background] captureTab skipping due to no_action', {
-        reason: noActionDecision.reason,
-        sessionId: noActionDecision.sessionId,
-        label: noActionDecision.label
-      });
-      if (noActionDecision.sessionId) {
-        currentSessionId = noActionDecision.sessionId;
-        await storage.setCurrentSessionId(currentSessionId);
-      }
-      lastCaptureTs = capture.ts;
-      lastCaptureUrl = capture.url;
-      recentTabCaptures.set(tab.id, { url: tab.url, ts: now });
+    if (await handleNoActionDecision(captureTabObj, tab, capture)) {
       return;
     }
 
@@ -334,33 +328,16 @@ async function captureTab(tab) {
           lastCaptureTs = capture.ts;
           lastCaptureUrl = capture.url;
           return;
-        } else if (captureTabObj._serverNoActionDecision) {
-          // If no_action was returned, switch to that session instead of creating new
-          const noActionDecision = captureTabObj._serverNoActionDecision;
-          console.log('SessionSwitch: [Background] captureTab switching to existing session (no_action after idle)', {
-            sessionId: noActionDecision.sessionId,
-            label: noActionDecision.label,
-            reason: noActionDecision.reason
-          });
-          if (noActionDecision.sessionId) {
-            currentSessionId = noActionDecision.sessionId;
-            await storage.setCurrentSessionId(currentSessionId);
-          }
-          lastCaptureTs = capture.ts;
-          lastCaptureUrl = capture.url;
-          recentTabCaptures.set(tab.id, { url: tab.url, ts: now });
+        } else if (await handleNoActionDecision(captureTabObj, tab, capture)) {
           return;
         } else {
-          // Check if server recommended create_new with a suggested label
-          if (captureTabObj._serverCreateNewDecision && captureTabObj._serverCreateNewDecision.suggestedLabel) {
-            console.log('SessionSwitch: [Background] captureTab starting new session after idle break with suggested label', {
-              suggestedLabel: captureTabObj._serverCreateNewDecision.suggestedLabel
-            });
-            await startNewSession(captureTabObj._serverCreateNewDecision.suggestedLabel);
+          const suggestedLabel = captureTabObj._serverCreateNewDecision?.suggestedLabel;
+          if (suggestedLabel) {
+            console.log('SessionSwitch: [Background] Starting new session with suggested label', { suggestedLabel });
           } else {
-            console.log('SessionSwitch: [Background] captureTab starting new session after idle break');
-            await startNewSession();
+            console.log('SessionSwitch: [Background] Starting new session after idle break');
           }
+          await startNewSession(suggestedLabel);
         }
       }
     }
@@ -452,31 +429,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return undefined;
 });
 
-// Periodic cleanup task: remove single-tab sessions older than 10 minutes
 async function cleanupStaleOneTabSessions() {
   try {
     const allSessions = await storage.getAllSessions();
     const now = Date.now();
-    const tenMinutesMs = 10 * 60 * 1000;
     let deletedCount = 0;
 
     for (const session of allSessions) {
-      // Only target sessions with exactly 1 tab
-      if (session.tabList && session.tabList.length === 1) {
-        // Calculate age based on the last update time (endTs or startTs)
+      if (session.tabList?.length === 1) {
         const lastUpdate = session.endTs || session.startTs || now;
         const age = now - lastUpdate;
         
-        if (age > tenMinutesMs) {
+        if (age > TIME_CONSTANTS.TEN_MINUTES_MS) {
           await storage.deleteSession(session.id);
           deletedCount++;
           console.log('SessionSwitch: [Background] Cleaned up stale single-tab session', {
             sessionId: session.id,
             label: session.label || '(unlabeled)',
-            ageMinutes: Math.round(age / 1000 / 60)
+            ageMinutes: Math.round(age / 60000)
           });
           
-          // If this was the current session, clear it
           if (session.id === currentSessionId) {
             currentSessionId = null;
             await storage.setCurrentSessionId(null);
@@ -493,8 +465,7 @@ async function cleanupStaleOneTabSessions() {
   }
 }
 
-// Run cleanup every 5 minutes
-setInterval(cleanupStaleOneTabSessions, 5 * 60 * 1000);
+setInterval(cleanupStaleOneTabSessions, TIME_CONSTANTS.CLEANUP_INTERVAL_MS);
 
 chrome.runtime.onInstalled.addListener(async (details) => {
   await initialize();

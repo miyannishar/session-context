@@ -1,16 +1,11 @@
-const STORAGE_KEYS = {
-  SESSIONS: 'sessions',
-  EVENTS: 'events',
-  SETTINGS: 'settings',
-  CURRENT_SESSION_ID: 'currentSessionId'
-};
+import { STORAGE_KEYS, SESSION_CONFIG, SERVER_CONFIG } from './constants.js';
 
 export function getDefaultSettings() {
   return {
-    idleThresholdMinutes: 12,
+    idleThresholdMinutes: SESSION_CONFIG.DEFAULT_IDLE_THRESHOLD_MINUTES,
     excludedDomains: [],
     pauseCapture: false,
-    serverUrl: 'https://session-context.vercel.app/api'
+    serverUrl: SERVER_CONFIG.DEFAULT_URL
   };
 }
 
@@ -101,22 +96,20 @@ export async function getSortedSessions() {
   });
 }
 
-export async function cleanupSingleTabSessions(maxAgeHours = 5/60) {
+export async function cleanupSingleTabSessions(maxAgeHours = SESSION_CONFIG.SINGLE_TAB_CLEANUP_MINUTES / 60) {
   const sessions = await getAllSessions();
   const now = Date.now();
   const maxAgeMs = maxAgeHours * 60 * 60 * 1000;
   
   const sessionsToDelete = sessions.filter(session => {
-    if (!session.endTs) return false;
-    if (!session.tabList || session.tabList.length !== 1) return false;
-    
-    const sessionAge = now - session.endTs;
-    return sessionAge > maxAgeMs;
+    return session.endTs && 
+           session.tabList?.length === 1 && 
+           (now - session.endTs) > maxAgeMs;
   });
   
   if (sessionsToDelete.length > 0) {
-    const sessionIdsToDelete = sessionsToDelete.map(s => s.id);
-    const remainingSessions = sessions.filter(s => !sessionIdsToDelete.includes(s.id));
+    const sessionIdsToDelete = new Set(sessionsToDelete.map(s => s.id));
+    const remainingSessions = sessions.filter(s => !sessionIdsToDelete.has(s.id));
     await saveSessions(remainingSessions);
     return sessionsToDelete.length;
   }
@@ -124,23 +117,22 @@ export async function cleanupSingleTabSessions(maxAgeHours = 5/60) {
   return 0;
 }
 
-export async function cleanupExpiredSessions(maxAgeHours = 24) {
+export async function cleanupExpiredSessions(maxAgeHours = SESSION_CONFIG.SESSION_EXPIRY_HOURS) {
   const sessions = await getAllSessions();
   const now = Date.now();
   const maxAgeMs = maxAgeHours * 60 * 60 * 1000;
 
   const remainingSessions = sessions.filter(session => {
     const lastActivity = session.endTs || session.startTs;
-    if (!lastActivity) return true;
-    return now - lastActivity <= maxAgeMs;
+    return !lastActivity || (now - lastActivity <= maxAgeMs);
   });
 
-  if (remainingSessions.length !== sessions.length) {
+  const deletedCount = sessions.length - remainingSessions.length;
+  if (deletedCount > 0) {
     await saveSessions(remainingSessions);
-    return sessions.length - remainingSessions.length;
   }
 
-  return 0;
+  return deletedCount;
 }
 
 export async function clearSessions() {

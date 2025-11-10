@@ -1,22 +1,21 @@
+import { CONTENT_EXTRACTION } from './constants.js';
+
 export async function extractTabContent(tabId) {
   try {
     const results = await chrome.scripting.executeScript({
-      target: { tabId: tabId },
-      func: extractPageContent
+      target: { tabId },
+      func: extractPageContent,
+      args: [CONTENT_EXTRACTION]
     });
 
-    if (results && results[0] && results[0].result) {
-      return results[0].result;
-    }
-
-    return null;
+    return results?.[0]?.result || null;
   } catch (error) {
     console.log('SessionSwitch: Could not extract content from tab', tabId, error.message);
     return null;
   }
 }
 
-function extractPageContent() {
+function extractPageContent(config) {
   const content = {
     headers: [],
     metaDescription: '',
@@ -34,15 +33,15 @@ function extractPageContent() {
 
     const h2Elements = document.querySelectorAll('h2');
     content.h2 = Array.from(h2Elements)
-      .slice(0, 5)
+      .slice(0, config.MAX_H2_ELEMENTS)
       .map(h2 => h2.textContent.trim())
       .filter(text => text.length > 0);
 
     const allHeaders = document.querySelectorAll('h1, h2, h3');
     content.headers = Array.from(allHeaders)
-      .slice(0, 10)
+      .slice(0, config.MAX_HEADERS)
       .map(header => header.textContent.trim())
-      .filter(text => text.length > 0 && text.length < 200);
+      .filter(text => text.length > 0 && text.length < config.MAX_HEADER_LENGTH);
 
     const metaDesc = document.querySelector('meta[name="description"]');
     if (metaDesc) {
@@ -56,19 +55,17 @@ function extractPageContent() {
     }
 
     const bodyClone = document.body.cloneNode(true);
-    const scripts = bodyClone.querySelectorAll('script, style, nav, header, footer');
-    scripts.forEach(el => el.remove());
+    bodyClone.querySelectorAll('script, style, nav, header, footer').forEach(el => el.remove());
     
     const visibleText = bodyClone.textContent || bodyClone.innerText || '';
     content.visibleText = visibleText
       .replace(/\s+/g, ' ')
       .trim()
-      .substring(0, 500);
+      .substring(0, config.MAX_VISIBLE_TEXT_LENGTH);
 
     if (!content.h1 && document.title) {
       content.h1 = document.title;
     }
-
   } catch (error) {
     console.error('Error extracting page content:', error);
   }
@@ -76,84 +73,3 @@ function extractPageContent() {
   return content;
 }
 
-export function formatContentForLabeling(content, title, url) {
-  if (!content) {
-    return `${title} (${extractDomain(url)})`;
-  }
-
-  const parts = [];
-
-  if (title) {
-    parts.push(`Title: ${title}`);
-  }
-
-  if (content.h1 && content.h1 !== title) {
-    parts.push(`Main Heading: ${content.h1}`);
-  }
-
-  if (content.h2 && content.h2.length > 0) {
-    parts.push(`Sections: ${content.h2.slice(0, 3).join(', ')}`);
-  }
-
-  if (content.metaDescription) {
-    parts.push(`Description: ${content.metaDescription.substring(0, 150)}`);
-  }
-
-  if (!content.h1 && !content.h2.length && !content.metaDescription && content.visibleText) {
-    const snippet = content.visibleText.substring(0, 200).replace(/\n/g, ' ');
-    parts.push(`Content: ${snippet}`);
-  }
-
-  const domain = extractDomain(url);
-  if (domain) {
-    parts.push(`Site: ${domain}`);
-  }
-
-  return parts.join('\n');
-}
-
-function extractDomain(url) {
-  try {
-    const urlObj = new URL(url);
-    return urlObj.hostname;
-  } catch (e) {
-    return null;
-  }
-}
-
-export function extractKeywords(content, title) {
-  const keywords = new Set();
-
-  if (title) {
-    title.toLowerCase()
-      .split(/[\s\-_/]+/)
-      .filter(word => word.length > 3)
-      .forEach(word => keywords.add(word));
-  }
-
-  if (content && content.h1) {
-    content.h1.toLowerCase()
-      .split(/[\s\-_/]+/)
-      .filter(word => word.length > 3)
-      .forEach(word => keywords.add(word));
-  }
-
-  if (content && content.h2) {
-    content.h2.forEach(h2 => {
-      h2.toLowerCase()
-        .split(/[\s\-_/]+/)
-        .filter(word => word.length > 3)
-        .forEach(word => keywords.add(word));
-    });
-  }
-
-  if (content && content.visibleText) {
-    content.visibleText.toLowerCase()
-      .substring(0, 200)
-      .split(/[\s\-_/]+/)
-      .filter(word => word.length > 4)
-      .forEach(word => keywords.add(word));
-  }
-
-  return keywords;
-}
