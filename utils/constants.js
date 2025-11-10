@@ -14,7 +14,7 @@ export const STORAGE_KEYS = {
 };
 
 export const SERVER_CONFIG = {
-  DEFAULT_URL: 'http://localhost:8000/api',
+  DEFAULT_URL: 'https://session-context.onrender.com/api',
   ENDPOINTS: {
     GROUP: '/group',
     LABEL: '/label',

@@ -48,28 +48,23 @@ session-context/
 │   ├── icon16.png
 │   ├── icon48.png
 │   └── icon128.png
-├── adk_server/                     # Python FastAPI + Google ADK backend
-│   ├── app/
-│   │   ├── main.py                # FastAPI server with /api/group & /api/label
-│   │   ├── schemas.py             # Pydantic models for requests/responses
-│   │   ├── base_agent/            # Root coordinator agent
-│   │   │   ├── agent.py
-│   │   │   └── tools.py           # Web search & datetime tools
-│   │   ├── summarizer/            # Tab content summarization agent
-│   │   │   ├── agent.py
-│   │   │   └── prompt.py
-│   │   ├── matcher/               # Session matching agent
-│   │   │   ├── agent.py
-│   │   │   └── prompt.py
-│   │   └── labeler/               # Session label generation agent
-│   │       ├── agent.py
-│   │       └── prompt.py
-│   ├── requirements.txt
-│   └── .env                       # API keys (OPENAI_API_KEY, SERPER_API_KEY)
-└── server/                        # Legacy Node.js server (deprecated)
-    ├── server.js
-    ├── package.json
-    └── README.md
+└── adk_server/                     # Python FastAPI + Google ADK backend
+    ├── main.py                # FastAPI server with /api/group & /api/label
+    │   ├── schemas.py             # Pydantic models for requests/responses
+    │   ├── base_agent/            # Root coordinator agent
+    │   │   ├── agent.py
+    │   │   └── tools.py           # Web search & datetime tools
+    │   ├── summarizer/            # Tab content summarization agent
+    │   │   ├── agent.py
+    │   │   └── prompt.py
+    │   ├── matcher/               # Session matching agent
+    │   │   ├── agent.py
+    │   │   └── prompt.py
+    │   └── labeler/               # Session label generation agent
+    │       ├── agent.py
+    │       └── prompt.py
+    ├── requirements.txt
+    └── .env                       # API keys (OPENAI_API_KEY, SERPER_API_KEY)
 ```
 
 ---
@@ -178,7 +173,7 @@ uvicorn app.main:app --reload
 # Server runs on http://localhost:8000
 ```
 
-The extension defaults to `http://localhost:8000/api`. To use a different URL, open the options page and update **Server API URL**.
+By default the extension points to the hosted backend at `https://session-context.onrender.com/api`. When running locally, open the options page and set **Server API URL** to `http://localhost:8000/api`.
 
 ---
 
@@ -199,7 +194,7 @@ The extension defaults to `http://localhost:8000/api`. To use a different URL, o
 
 3. **Configure (optional)**:
    - Open the extension options page
-   - Set **Server API URL** to `http://localhost:8000/api`
+   - Keep the default hosted URL `https://session-context.onrender.com/api`, or switch to `http://localhost:8000/api` if you’re testing locally
    - Adjust idle threshold, excluded domains as needed
 
 4. **Test**:
