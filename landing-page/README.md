@@ -17,7 +17,7 @@ Built with [Vue 3](https://vuejs.org/), [shadcn-vue](https://www.shadcn-vue.com/
 Clone the main repository (includes both the Chrome extension and this landing site):
 
 ```bash
-git clone https://github.com/nisharmiya/session-context.git
+git clone https://github.com/miyannishar/session-context.git
 cd session-context/shadcn-vue-landing-page
 ```
 

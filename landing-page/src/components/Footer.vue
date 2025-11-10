@@ -38,7 +38,7 @@ import Separator from "./ui/separator/Separator.vue";
 
           <div>
             <a
-              href="https://github.com/nisharmiya/session-context"
+              href="https://github.com/miyannishar/session-context"
               class="opacity-60 hover:opacity-100"
               target="_blank"
               rel="noopener noreferrer"
@@ -49,7 +49,7 @@ import Separator from "./ui/separator/Separator.vue";
 
           <div>
             <a
-              href="https://github.com/nisharmiya/session-context/discussions"
+              href="https://github.com/miyannishar/session-context/discussions"
               class="opacity-60 hover:opacity-100"
               target="_blank"
               rel="noopener noreferrer"
@@ -117,7 +117,7 @@ import Separator from "./ui/separator/Separator.vue";
 
           <div>
             <a
-              href="https://github.com/nisharmiya/session-context/issues/new/choose"
+              href="https://github.com/miyannishar/session-context/issues/new/choose"
               class="opacity-60 hover:opacity-100"
               target="_blank"
               rel="noopener noreferrer"

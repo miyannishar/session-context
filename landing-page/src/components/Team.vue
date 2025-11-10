@@ -68,9 +68,7 @@ const socialIcon = (socialName: string) => {
       </h2>
     </div>
 
-    <div
-      class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8"
-    >
+    <div class="grid grid-cols-1 gap-8 place-items-center">
       <Card
         v-for="{
           imageUrl,
@@ -80,7 +78,7 @@ const socialIcon = (socialName: string) => {
           socialNetworks,
         } in teamList"
         :key="imageUrl"
-        class="bg-muted/60 dark:bg-card flex flex-col h-full overflow-hidden group/hoverimg"
+        class="bg-muted/60 dark:bg-card flex flex-col h-full overflow-hidden group/hoverimg max-w-sm w-full"
       >
         <CardHeader class="p-0 gap-0">
           <div class="h-full overflow-hidden">

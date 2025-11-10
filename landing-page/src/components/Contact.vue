@@ -34,7 +34,7 @@ const contactForm = reactive<ContactFormeProps>({
 
 const handleSubmit = () => {
   const { firstName, lastName, email, subject, message } = contactForm;
-  const mailToLink = `mailto:hello@sessionswitch.dev?subject=${encodeURIComponent(
+  const mailToLink = `mailto:miyannishar786@gmail.com?subject=${encodeURIComponent(
     `[SessionSwitch] ${subject}`
   )}&body=${encodeURIComponent(
     `Hello SessionSwitch team,\n\nI'm ${firstName} ${lastName} (${email}).\n\n${message}\n\n`
@@ -68,7 +68,7 @@ const handleSubmit = () => {
               <div class="font-bold">Find us</div>
             </div>
 
-            <div>Remote-first across North America & India</div>
+            <div>Nashville, TN · Kathmandu, Nepal</div>
           </div>
 
           <div>
@@ -81,7 +81,7 @@ const handleSubmit = () => {
               Join the discussions on
               <a
                 class="underline"
-                href="https://github.com/nisharmiya/session-context/discussions"
+                href="https://github.com/miyannishar/session-context/discussions"
                 target="_blank"
                 rel="noopener noreferrer"
                 >GitHub Discussions</a
@@ -95,7 +95,7 @@ const handleSubmit = () => {
               <div class="font-bold">Mail us</div>
             </div>
 
-            <div>hello@sessionswitch.dev</div>
+            <div>miyannishar786@gmail.com</div>
           </div>
 
           <div>

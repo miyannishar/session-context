@@ -35,7 +35,7 @@ const plans: PlanProps[] = [
     billing: "Forever free",
     description: "Everything you need to capture and reopen sessions locally.",
     buttonText: "Read setup guide",
-    buttonHref: "https://github.com/nisharmiya/session-context#quick-start-adk-server",
+    buttonHref: "https://github.com/miyannishar/session-context#quick-start-adk-server",
     benefitList: [
       "Manifest V3 Chrome extension",
       "Local chrome.storage persistence",
@@ -50,7 +50,7 @@ const plans: PlanProps[] = [
     billing: "Bring your own keys",
     description: "Deploy the FastAPI + Google ADK backend for full agent magic.",
     buttonText: "Deploy backend",
-    buttonHref: "https://github.com/nisharmiya/session-context/tree/main/adk_server",
+    buttonHref: "https://github.com/miyannishar/session-context/tree/main/adk_server",
     benefitList: [
       "Summarizer, matcher, labeler agents",
       "Serper web search integration",

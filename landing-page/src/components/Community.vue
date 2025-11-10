@@ -42,7 +42,7 @@ import { Github } from "lucide-vue-next";
           <CardFooter>
             <Button as-child>
               <a
-                href="https://github.com/nisharmiya/session-context"
+                href="https://github.com/miyannishar/session-context"
                 target="_blank"
                 rel="noopener noreferrer"
               >

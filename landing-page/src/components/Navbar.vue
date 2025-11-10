@@ -215,7 +215,7 @@ const isOpen = ref<boolean>(false);
       <Button as-child size="sm" variant="ghost" aria-label="View on GitHub">
         <a
           aria-label="View on GitHub"
-          href="https://github.com/nisharmiya/session-context"
+          href="https://github.com/miyannishar/session-context"
           target="_blank"
         >
           <Github class="size-5" />
